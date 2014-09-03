@@ -33,8 +33,6 @@
     "hapi": "^6.7.1",
     "hapi-auth-cookie": "^1.0.2",
     "joi": "^4.6.2",
-    "leveldown": "^0.10.2",
-    "levelup": "^0.18.3",
     "longjohn": "^0.2.4",
     "request": "^2.34.0",
     "semver": "^2.2.1",

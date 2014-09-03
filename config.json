@@ -1,7 +1,7 @@
 {
   default: {
     store: {
-      type: 'leveldb'
+      type: 'memory'
     }
   }
 }

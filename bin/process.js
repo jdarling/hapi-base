@@ -11,6 +11,7 @@ var Plugger = require('../internal/plugger').Plugger;
 var async = require('async');
 var pjson = require('../package.json');
 var webconfig = config.section('web', {port: 8080, host: '0.0.0.0'});
+var stores = require('../lib/store');
 var plugger = new Plugger({
     path: pluginsPath
   });
@@ -43,7 +44,8 @@ plugger.load(function(err, plugins){
         config: cfg,
         lib: loadLib,
         pluginsFolder: pluginsPath,
-        plugins: plugins
+        plugins: plugins,
+        stores: stores
       }, next);
     }catch(e){
       console.log('Error loading: '+(plugin.location||plugin.name));
