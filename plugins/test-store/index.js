@@ -36,7 +36,7 @@ var deleteRecord = function(req, reply){
 module.exports = function(options, next){
   var config = options.config;
   var server = options.hapi;
-  var store = options.stores(config.collectionName||'test-records');
+  var store = options.stores(config.collectionName||'test');
 
   server.route([
     {
