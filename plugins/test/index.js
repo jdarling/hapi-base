@@ -1,12 +1,15 @@
 var listRecords = function(req, reply){
   var self = this;
-  self.asArray(req.params, function(err, records){
+  self.asArray(req.query, function(err, records){
     reply(err||records);
   });
 };
 
 var getRecord = function(req, reply){
-  reply('not implemented');
+  var self = this;
+  self.get(req.params.id, function(err, record){
+    reply(err||record);
+  });
 };
 
 var postRecord = function(req, reply){
@@ -25,7 +28,7 @@ var putRecord = function(req, reply){
 
 var deleteRecord = function(req, reply){
   var self = this;
-  self.update(req.params.id, {deleted: true}, function(err, response){
+  self.delete(req.params.id, function(err, response){
     reply(err||response);
   });
 };
