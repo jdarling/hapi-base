@@ -164,3 +164,7 @@ Store.prototype.upsert = function(rec){
   }
   return self;
 };
+
+Store.record = Record;
+
+module.exports = Store;

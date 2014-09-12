@@ -6,13 +6,14 @@ var gulp = require('gulp'),
     rename = require('gulp-rename'),
     clean = require('gulp-clean'),
     concat = require('gulp-concat'),
-//    notify = require('gulp-notify'),
     cache = require('gulp-cache'),
-    livereload = require('gulp-livereload'),
-    lr = require('tiny-lr'),
     path = require('path'),
-    livereloadport = 35729,
-    cheerio = require('gulp-cheerio'),
+    gcheerio = require('gulp-cheerio'),
+    cheerio = require('cheerio'),
+    async = require('async'),
+    source = require('vinyl-source-stream'),
+    browserify = require('browserify'),
+    glob = require('glob'),
     fs = require('fs')
     ;
 
@@ -25,52 +26,71 @@ gulp.task('styles', function() {
     .pipe(rename({suffix: '.min'}))
     .pipe(minifycss())
     .pipe(gulp.dest('web/site/style'))
-    //.pipe(notify({ message: 'Styles task complete' }))
     ;
 });
 
 gulp.task('scripts', function() {
-  return gulp.src(['web/src/lib/**/*.js', 'web/src/js/**/!(app)*.js', 'web/src/js/app.js'])
-    .pipe(concat('app.js'))
+  var sources = glob.sync('./web/src/js/controllers/**/*.js');
+  sources.unshift('./web/src/js/app.js');
+  return browserify({
+      entries: sources,
+      fullPaths: true
+    })
+    .bundle()
+    .pipe(source('app.js'))
     .pipe(gulp.dest('web/site/js'))
-    .pipe(rename({suffix: '.min'}))
-    .pipe(uglify())
-    .pipe(gulp.dest('web/site/js'))
-    //.pipe(notify({ message: 'Scripts task complete' }))
     ;
 });
 
 gulp.task('html', function(){
-  return gulp.src('web/src/index.html')
-    .pipe(cheerio({
-      run: function($, done){
-        var els = $('[embed-src]');
-        els.each(function(){
-          var el = $(this);
-          var srcFile = 'web/src/'+$(this).attr('embed-src');
-          var src = fs.readFileSync(srcFile);
-          el.removeAttr('embed-src');
+  var doReplaceEmbeds = function($, done){
+    var els = $('[embed-src]');
+    async.each(els, function reformEmbed(elem, next){
+      var el = $(elem);
+      var srcFile = 'web/src/'+el.attr('embed-src');
+      var src = fs.readFile(srcFile, function loadSource(err, src){
+        if(err){
+          console.error(err);
+          src = 'File not found: '+srcFile;
+        }
+        el.removeAttr('embed-src');
+        replaceEmbeds(src.toString(), function(err, src){
           el.html(src);
+          next();
         });
+      });
+    }, function(){
+      done(null, $.html());
+    });
+  };
+
+  var replaceEmbeds = function replaceEmbeds(src, done){
+    var $ = cheerio.load(src);
+    doReplaceEmbeds($, done);
+  };
+
+  return gulp.src('web/src/index.html')
+  .pipe(gcheerio({
+    cheerio: cheerio,
+    run: function($, done){
+      doReplaceEmbeds($, function globalReplace(err, src){
         done();
-      }
-    }))
-    .pipe(gulp.dest('web/site'))
-    //.pipe(notify({ message: 'HTML task complete' }))
-    ;
+      });
+    }
+  }))
+  .pipe(gulp.dest('web/site'))
+  ;
 });
 
 gulp.task('vendor', function(){
   return gulp.src('web/src/vendor/**/*')
     .pipe(gulp.dest('web/site/vendor'))
-    //.pipe(notify({ message: 'Vendor task complete' }))
     ;
 });
 
 gulp.task('images', function() {
   return gulp.src('web/src/images/**/*')
     .pipe(gulp.dest('web/site/images'))
-    //.pipe(notify({ message: 'Images task complete' }))
     ;
 });
 
@@ -91,6 +111,7 @@ gulp.task('watch', ['clean'], function() {
   gulp.watch('web/src/images/**/*', ['images']);
   // Watch the html files
   gulp.watch('web/src/**/*.html', ['html']);
+  gulp.watch('web/src/**/*.md', ['html']);
   // Watch the vendor files
   gulp.watch('web/src/vendor/**/*', ['vendor']);
 
