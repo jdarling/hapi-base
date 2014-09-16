@@ -15,6 +15,7 @@ var gulp = require('gulp'),
     browserify = require('browserify'),
     glob = require('glob'),
     imagemin = require('gulp-imagemin'),
+    replace = require('gulp-replace'),
     fs = require('fs')
     ;
 
@@ -79,6 +80,7 @@ gulp.task('html', function(){
       });
     }
   }))
+  .pipe(replace(/{{&gt;/g, '{{>'))
   .pipe(gulp.dest('web/site'))
   ;
 });
