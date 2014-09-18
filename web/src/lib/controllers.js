@@ -17,6 +17,10 @@ Controllers.prototype.create = function(container, controllerName, data){
   return container.controller = new Controller(container, data);
 };
 
+Controllers.prototype.get = function(controllerName){
+  return this._controllers[controllerName];
+};
+
 Controllers.prototype.register = function(controllerName, controller){
   this._controllers[controllerName] = controller;
 };
