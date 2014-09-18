@@ -71,7 +71,7 @@ gulp.task('html', function(){
     doReplaceEmbeds($, done);
   };
 
-  return gulp.src('web/src/index.html')
+  return gulp.src('web/src/*.html')
   .pipe(gcheerio({
     cheerio: cheerio,
     run: function($, done){
@@ -128,4 +128,4 @@ gulp.task('watch', ['clean'], function() {
 
 gulp.task('default', ['clean'], function() {
     gulp.start('styles', 'scripts', 'vendor', 'html', 'images');
-});
+});
