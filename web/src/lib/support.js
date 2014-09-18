@@ -41,7 +41,6 @@ module.exports = {
         results = {},
         keys = Object.keys(params);
     keys.forEach(function(key){
-      console.log(key, key.match(filter), filter);
       if(key.match(filter)){
         results[key] = params[key];
       }
