@@ -1,3 +1,4 @@
+var Loader = require('../lib/loader.js');
 var Support = require('../lib/support.js');
 var el = Support.el;
 var els = Support.els;
@@ -72,4 +73,4 @@ Partials.prototype.preload = function(callback){
   doneLoading();
 };
 
-module.exports = Partials;
+module.exports = Partials;
