@@ -61,9 +61,18 @@ Application.prototype.init = function(){
   nav
     .navigate({
       path: '/',
-      directions: function(params){
-        app.displayPage('home');
-      }
+      directions: (function(){
+        var e = el('script#home');
+        var dataApi = e?e.getAttribute('data-api'):false;
+        if(dataApi){
+          return Loader.get(dataApi, function(err, data){
+            return app.displayPage('home', err||data);
+          });
+        }
+        return function(params){
+          app.displayPage('home');
+        };
+      })
     })
     ;
 

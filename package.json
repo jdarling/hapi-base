@@ -33,7 +33,7 @@
     "async": "^0.7.0",
     "busboy": "^0.2.5",
     "handlebars": "^2.0.0-alpha.2",
-    "hapi": "^6.7.1",
+    "hapi": "^6.8.1",
     "hapi-auth-cookie": "^1.0.2",
     "joi": "^4.6.2",
     "longjohn": "^0.2.4",
