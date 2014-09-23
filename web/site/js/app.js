@@ -62,9 +62,18 @@ Application.prototype.init = function(){
   nav
     .navigate({
       path: '/',
-      directions: function(params){
-        app.displayPage('home');
-      }
+      directions: (function(){
+        var e = el('script#home');
+        var dataApi = e?e.getAttribute('data-api'):false;
+        if(dataApi){
+          return Loader.get(dataApi, function(err, data){
+            return app.displayPage('home', err||data);
+          });
+        }
+        return function(params){
+          app.displayPage('home');
+        };
+      })
     })
     ;
 
@@ -2184,6 +2193,10 @@ Controllers.prototype.create = function(container, controllerName, data){
   return container.controller = new Controller(container, data);
 };
 
+Controllers.prototype.get = function(controllerName){
+  return this._controllers[controllerName];
+};
+
 Controllers.prototype.register = function(controllerName, controller){
   this._controllers[controllerName] = controller;
 };
@@ -2199,9 +2212,9 @@ var cleanupControllers = function (e) {
     }
     if(node.controller){
       if(node.controller.teardown){
-        node.controller.teardown();
+        node.controller.teardown(node);
       }
-      delete node.controller;
+      node.controller = null;
     }
   };
   if(e.type=='DOMNodeRemoved'){
@@ -2212,9 +2225,12 @@ var cleanupControllers = function (e) {
 
 if(typeof(MutationObserver)!=='undefined'){
   var observer = new MutationObserver(function(mutations){
-    mutations.forEach(cleanupControllers);
+    mutations.forEach(function(mutation){
+      var removed = mutation.removedNodes?Array.prototype.slice.apply(mutation.removedNodes):[];
+      removed.forEach(cleanupControllers);
+    });
   });
-  observer.observe(document.body, { childList: true });
+  observer.observe(document.body, { childList: true, subtree: true });
 }else{
   document.body.addEventListener('DOMNodeRemoved', cleanupControllers, true);
 }
@@ -2238,6 +2254,9 @@ var helpers = {
       result.push(options.fn(ary[i]));
     }
     return result.join('');
+  },
+  join: function(arr, joiner){
+    return arr.join(joiner);
   },
   isComplex: function(obj){
     if(typeof(obj)==='object'){
@@ -2314,6 +2333,33 @@ var helpers = {
   },
   moment: function(dt, f){
     return moment(dt).format(f);
+  },
+  ifCond: function(v1, operator, v2, options){
+    switch (operator) {
+      case '==':
+        return (v1 == v2) ? options.fn(this) : options.inverse(this);
+      case '===':
+        return (v1 === v2) ? options.fn(this) : options.inverse(this);
+      case '<':
+        return (v1 < v2) ? options.fn(this) : options.inverse(this);
+      case '<=':
+        return (v1 <= v2) ? options.fn(this) : options.inverse(this);
+      case '>':
+        return (v1 > v2) ? options.fn(this) : options.inverse(this);
+      case '>=':
+        return (v1 >= v2) ? options.fn(this) : options.inverse(this);
+      case '&&':
+        return (v1 && v2) ? options.fn(this) : options.inverse(this);
+      case '||':
+        return (v1 || v2) ? options.fn(this) : options.inverse(this);
+      default:
+        return options.inverse(this);
+    }
+  },
+  option: function(value, setValue, options){
+    return value == setValue?
+      '<option value="'+value+'" SELECTED>'+options.fn(this)+'</options>'
+      :'<option value="'+value+'">'+options.fn(this)+'</options>';
   },
 };
 var key;
@@ -2558,6 +2604,7 @@ define([], function(){
 });
 
 },{}],"/home/jdarling/hapi-base/web/src/lib/partials.js":[function(require,module,exports){
+var Loader = require('../lib/loader.js');
 var Support = require('../lib/support.js');
 var el = Support.el;
 var els = Support.els;
@@ -2633,8 +2680,7 @@ Partials.prototype.preload = function(callback){
 };
 
 module.exports = Partials;
-
-},{"../lib/support.js":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"/home/jdarling/hapi-base/web/src/lib/support.js":[function(require,module,exports){
+},{"../lib/loader.js":"/home/jdarling/hapi-base/web/src/lib/loader.js","../lib/support.js":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"/home/jdarling/hapi-base/web/src/lib/support.js":[function(require,module,exports){
 module.exports = {
   el: function(src, sel){
     if(!sel){
@@ -2656,13 +2702,193 @@ module.exports = {
     return from.value||from.getAttribute('value')||from.innerText||from.innerHTML;
   },
 
+  toHyphens: function(s){
+    return s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+  },
+
+  toCamelCase: function(s){
+    return s.toLowerCase().replace(/-(.)/g, function(match, group){
+      return group.toUpperCase();
+    });
+  },
+
+  paramByName: function(name, defaultValue) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? defaultValue : decodeURIComponent(results[1].replace(/\+/g, " "));
+  },
+
+  filterParams: function(filter, defaultValues){
+    var params = this.params(defaultValues),
+        results = {},
+        keys = Object.keys(params);
+    keys.forEach(function(key){
+      if(key.match(filter)){
+        results[key] = params[key];
+      }
+    });
+    return results;
+  },
+
+  param: function(val, defaultValue){
+    var result = defaultValue,
+        tmp = [];
+    location.search
+      .substr(1)
+        .split("&")
+        .forEach(function(item){
+          tmp = item.split("=");
+          if (tmp[0] === val){
+            result = decodeURIComponent(tmp[1].replace(/\+/g, " "));
+          }
+        });
+    return result;
+  },
+
+  reTrue: /^(true|t|yes|y|1)$/i,
+  reFalse: /^(false|f|no|n|0)$/i,
+
+  isTrue: function(value){
+    return !!this.reTrue.exec(''+value);
+  },
+
+  isFalse: function(value){
+    return !!this.reFalse.exec(''+value);
+  },
+
+  isNumeric: function(n){
+    return !isNaN(parseFloat(n)) && isFinite(n);
+  },
+
+  decodeValue: function(value){
+    if(this.isNumeric(value)){
+      return +value;
+    }else if(this.isTrue(value)){
+      return true;
+    }else if(this.isFalse(value)){
+      return false;
+    }else{
+      return value;
+    }
+  },
+
+  hashParams: function(defaults){
+    var q = location.hash.split('?'),
+      d = function(s){
+            return decodeURIComponent(s.replace(/\+/g, " "));
+          },
+      r  = /([^&=]+)=?([^&]*)/g,
+      r2= /([^&=\[]+)\[(.*)\]/,
+      r3= /([^&=\[]+)\]\[(.+)/,
+      urlParams = {},
+      key, value, e, e2, elem;
+    q.shift();
+    q = q.join('?');
+    for(key in (defaults || {})){
+      urlParams[key] = defaults[key];
+    }
+    while (e = r.exec(q)) {
+      if(e[1].indexOf("[") === -1){
+        // simple match, no [] identifiers
+        urlParams[d(e[1])] = d(e[2]);
+      }else{
+        value = e[2];
+        key = e[1];
+        elem = urlParams;
+        if(key.indexOf('][')===-1){
+          while(e2=r2.exec(key)){
+            key = e2[1];
+            elem = elem[key] = elem[key] || {};
+            key = e2[2];
+          }
+        }else{
+          key = key.replace(/\]$/i, '');
+          while(e2 = r3.exec(key)){
+            key = e2[1];
+            elem = elem[key] = elem[key] || {};
+            if(e2[2]){
+              key = e2[2];
+            }
+          }
+        }
+        if(!key){
+          key = elem.length = elem.length||0;
+          elem.length++;
+        }
+        elem[key] = value;
+      }
+    }
+    return urlParams;
+  },
+
+  params: function(defaults){
+    return this.parseParams(window.location.search.replace(/^\?/,''), true, defaults);
+  },
+
+  parseParams: function(paramStr, decodeValues, defaults){
+    var self = this,
+      q = paramStr||'',
+      d = function (s) {
+        var value = decodeURIComponent(s.replace(/\+/g, " "));
+        if(decodeValues){
+          value = self.decodeValue(value);
+        }
+        return value;
+      },
+      r  = /([^&=]+)=?([^&]*)/g,
+      r2= /([^&=\[]+)\[(.*)\]/,
+      r3= /([^&=\[]+)\]\[(.+)/,
+      urlParams = {},
+      key, value, e, e2, elem;
+    if(typeof(decodeValues)==='object'){
+      defaults = decodeValues;
+      decodeValues = false;
+    }
+    for(key in (defaults || {})){
+      urlParams[key] = defaults[key];
+    }
+    while (e = r.exec(q)) {
+      if(e[1].indexOf("[") === -1){
+        // simple match, no [] identifiers
+        urlParams[d(e[1])] = d(e[2]);
+      }else{
+        value = e[2];
+        key = e[1];
+        elem = urlParams;
+        if(key.indexOf('][')===-1){
+          while(e2=r2.exec(key)){
+            key = e2[1];
+            elem = elem[key] = elem[key] || {};
+            key = e2[2];
+          }
+        }else{
+          key = key.replace(/\]$/i, '');
+          while(e2 = r3.exec(key)){
+            key = e2[1];
+            elem = elem[key] = elem[key] || {};
+            if(e2[2]){
+              key = e2[2];
+            }
+          }
+        }
+        if(!key){
+          key = elem.length = elem.length||0;
+          elem.length++;
+        }
+        elem[key] = value;
+      }
+    }
+    return urlParams;
+  },
+
   pkg: function(from){
     var result = {};
     from.forEach(function(e){
       result[e.getAttribute('name')] = val(e);
     });
     return result;
-  }  
+  }
 };
 
 },{}]},{},["./web/src/js/app.js","./web/src/js/controllers/charts/barchartcontroller.js","./web/src/js/controllers/charts/linechartcontroller.js","./web/src/js/controllers/charts/mindmapcontroller.js","./web/src/js/controllers/charts/piechartcontroller.js","./web/src/js/controllers/charts/scatterchartcontroller.js","./web/src/js/controllers/charts/tableviewcontroller.js","./web/src/js/controllers/markdown.js","./web/src/js/controllers/sample.js"]);
