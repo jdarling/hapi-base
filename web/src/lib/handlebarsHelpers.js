@@ -14,6 +14,9 @@ var helpers = {
     }
     return result.join('');
   },
+  join: function(arr, joiner){
+    return arr.join(joiner);
+  },
   isComplex: function(obj){
     if(typeof(obj)==='object'){
       return true;
@@ -89,6 +92,33 @@ var helpers = {
   },
   moment: function(dt, f){
     return moment(dt).format(f);
+  },
+  ifCond: function(v1, operator, v2, options){
+    switch (operator) {
+      case '==':
+        return (v1 == v2) ? options.fn(this) : options.inverse(this);
+      case '===':
+        return (v1 === v2) ? options.fn(this) : options.inverse(this);
+      case '<':
+        return (v1 < v2) ? options.fn(this) : options.inverse(this);
+      case '<=':
+        return (v1 <= v2) ? options.fn(this) : options.inverse(this);
+      case '>':
+        return (v1 > v2) ? options.fn(this) : options.inverse(this);
+      case '>=':
+        return (v1 >= v2) ? options.fn(this) : options.inverse(this);
+      case '&&':
+        return (v1 && v2) ? options.fn(this) : options.inverse(this);
+      case '||':
+        return (v1 || v2) ? options.fn(this) : options.inverse(this);
+      default:
+        return options.inverse(this);
+    }
+  },
+  option: function(value, setValue, options){
+    return value == setValue?
+      '<option value="'+value+'" SELECTED>'+options.fn(this)+'</options>'
+      :'<option value="'+value+'">'+options.fn(this)+'</options>';
   },
 };
 var key;

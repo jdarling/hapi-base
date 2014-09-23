@@ -128,4 +128,4 @@ gulp.task('watch', ['clean'], function() {
 
 gulp.task('default', ['clean'], function() {
     gulp.start('styles', 'scripts', 'vendor', 'html', 'images');
-});
+});
