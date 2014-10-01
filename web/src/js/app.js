@@ -69,9 +69,7 @@ Application.prototype.init = function(){
             return app.displayPage('home', err||data);
           });
         }
-        return function(params){
-          app.displayPage('home');
-        };
+        return app.displayPage('home');
       })
     })
     ;
