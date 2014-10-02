@@ -383,7 +383,86 @@ TableViewController.prototype.update = function(data){
 
 require('../../../lib/controllers').register('TableView', TableViewController);
 
-},{"../../../lib/charts":"/home/jdarling/hapi-base/web/src/lib/charts.js","../../../lib/controllers":"/home/jdarling/hapi-base/web/src/lib/controllers.js","../../charts/table.js":"/home/jdarling/hapi-base/web/src/js/charts/table.js"}],"./web/src/js/controllers/markdown.js":[function(require,module,exports){
+},{"../../../lib/charts":"/home/jdarling/hapi-base/web/src/lib/charts.js","../../../lib/controllers":"/home/jdarling/hapi-base/web/src/lib/controllers.js","../../charts/table.js":"/home/jdarling/hapi-base/web/src/js/charts/table.js"}],"./web/src/js/controllers/formsubmitter.js":[function(require,module,exports){
+var controllers = require('../../lib/controllers.js');
+var support = require('../../lib/support');
+var Loader = require('../../lib/loader');
+var el = support.el;
+var els = support.els;
+var socket = require('../../lib/socket');
+helpers = require('../../lib/handlebarsHelpers')
+
+var FormSubmitterController = function(container, data){
+  var self = this;
+  var target = container.dataset.target;
+  var message = container.dataset.message;
+  var doConfirm = function(message, callback){
+    alertify.confirm(message, callback);
+  };
+  var processAction = function(form, buttons, method, action, target){
+    buttons.forEach(function(button){
+      button.disabled = true;
+    });
+    if(method==='post'){
+      return Loader.postForm(form, function(err, response){
+        buttons.forEach(function(button){
+          button.disabled = false;
+        });
+        if(err){
+          return alertify.error(err.error||err.stack||err);
+        }
+        if(message && alertify){
+          alertify.success(message, 1000);
+        }
+        window.location.href=target.replace(/{(.+)}/, function(match, token){
+          return response[token];
+        });
+      });
+    }
+    Loader[method](action, function(err, response){
+      buttons.forEach(function(button){
+        button.disabled = false;
+      });
+      if(err){
+        return alertify.error(err.error||err.stack||err);
+      }
+      window.location.href=target.replace(/{(.+)}/, function(match, token){
+        return response[token];
+      });
+    });
+  };
+  var handleSubmit = self.handleSubmit = function(e){
+    if(e.target && (e.target.nodeName === 'FORM') || (e.target.nodeName === 'BUTTON')){
+      var form = el(container, 'form')||container;
+      var buttons = els(container, 'button');
+      var method = (e.target.nodeName === 'BUTTON'?e.target.dataset.method||'POST':'POST').toLowerCase();
+      var action = e.target.nodeName === 'BUTTON'?e.target.dataset.action||form.action:form.action;
+      var tgt = e.target.nodeName === 'BUTTON'?e.target.dataset.target||target:target;
+      var confirm = e.target.nodeName === 'BUTTON'?e.target.dataset.confirm:false;
+      e.preventDefault();
+      if(confirm){
+        return alertify.confirm(confirm, function(ok){
+          if(ok){
+            processAction(form, buttons, method, action, tgt);
+          }
+        });
+      }
+      processAction(form, buttons, method, action, tgt);
+    }
+  };
+  container.addEventListener('submit', handleSubmit);
+  container.addEventListener('click', handleSubmit);
+};
+
+FormSubmitterController.prototype.teardown = function(container){
+  var self = this;
+  container.removeEventListener('submit', self.handleSubmit);
+  container.removeEventListener('click', self.handleSubmit);
+};
+
+controllers.register('FormSubmitter', FormSubmitterController);
+
+},{"../../lib/controllers.js":"/home/jdarling/hapi-base/web/src/lib/controllers.js","../../lib/handlebarsHelpers":"/home/jdarling/hapi-base/web/src/lib/handlebarsHelpers.js","../../lib/loader":"/home/jdarling/hapi-base/web/src/lib/loader.js","../../lib/socket":"/home/jdarling/hapi-base/web/src/lib/socket.js","../../lib/support":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"./web/src/js/controllers/markdown.js":[function(require,module,exports){
 var controllers = require('../../lib/controllers.js');
 var Support = require('../../lib/support.js');
 var el = Support.el;
@@ -457,7 +536,37 @@ var SampleController = function(container, data){
 
 controllers.register('SampleController', SampleController);
 
-},{"../../lib/controllers.js":"/home/jdarling/hapi-base/web/src/lib/controllers.js"}],"/home/jdarling/hapi-base/web/src/js/charts/bar.js":[function(require,module,exports){
+},{"../../lib/controllers.js":"/home/jdarling/hapi-base/web/src/lib/controllers.js"}],"./web/src/js/controllers/socketlistener.js":[function(require,module,exports){
+var controllers = require('../../lib/controllers.js');
+var support = require('../../lib/support');
+var el = support.el;
+var socket = require('../../lib/socket');
+helpers = require('../../lib/handlebarsHelpers')
+
+var SocketListenerController = function(container, data){
+  var self = this;
+  var src = container.innerHTML;
+  var message = container.dataset.message;
+  var template = Handlebars.compile(src);
+  var handleMessage = self.handleMessage = function(status){
+    container.innerHTML = template(status, {helpers: helpers});
+  };
+  socket.on(message, handleMessage);
+  if(data){
+    return handleMessage(data);
+  }
+  self.message = message;
+  container.innerHTML = '';
+};
+
+SocketListenerController.prototype.teardown = function(){
+  var self = this;
+  socket.removeListener(self.message, self.handleMessage);
+};
+
+controllers.register('SocketListener', SocketListenerController);
+
+},{"../../lib/controllers.js":"/home/jdarling/hapi-base/web/src/lib/controllers.js","../../lib/handlebarsHelpers":"/home/jdarling/hapi-base/web/src/lib/handlebarsHelpers.js","../../lib/socket":"/home/jdarling/hapi-base/web/src/lib/socket.js","../../lib/support":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"/home/jdarling/hapi-base/web/src/js/charts/bar.js":[function(require,module,exports){
 module.exports = function Bar() {
   var
       margin = {top: 30, right: 10, bottom: 50, left: 50},
@@ -2679,7 +2788,10 @@ Partials.prototype.preload = function(callback){
 };
 
 module.exports = Partials;
-},{"../lib/loader.js":"/home/jdarling/hapi-base/web/src/lib/loader.js","../lib/support.js":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"/home/jdarling/hapi-base/web/src/lib/support.js":[function(require,module,exports){
+},{"../lib/loader.js":"/home/jdarling/hapi-base/web/src/lib/loader.js","../lib/support.js":"/home/jdarling/hapi-base/web/src/lib/support.js"}],"/home/jdarling/hapi-base/web/src/lib/socket.js":[function(require,module,exports){
+module.exports = io();
+
+},{}],"/home/jdarling/hapi-base/web/src/lib/support.js":[function(require,module,exports){
 module.exports = {
   el: function(src, sel){
     if(!sel){
@@ -2890,4 +3002,4 @@ module.exports = {
   }
 };
 
-},{}]},{},["./web/src/js/app.js","./web/src/js/controllers/charts/barchartcontroller.js","./web/src/js/controllers/charts/linechartcontroller.js","./web/src/js/controllers/charts/mindmapcontroller.js","./web/src/js/controllers/charts/piechartcontroller.js","./web/src/js/controllers/charts/scatterchartcontroller.js","./web/src/js/controllers/charts/tableviewcontroller.js","./web/src/js/controllers/markdown.js","./web/src/js/controllers/sample.js"]);
+},{}]},{},["./web/src/js/app.js","./web/src/js/controllers/charts/barchartcontroller.js","./web/src/js/controllers/charts/linechartcontroller.js","./web/src/js/controllers/charts/mindmapcontroller.js","./web/src/js/controllers/charts/piechartcontroller.js","./web/src/js/controllers/charts/scatterchartcontroller.js","./web/src/js/controllers/charts/tableviewcontroller.js","./web/src/js/controllers/formsubmitter.js","./web/src/js/controllers/markdown.js","./web/src/js/controllers/sample.js","./web/src/js/controllers/socketlistener.js"]);
