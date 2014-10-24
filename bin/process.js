@@ -31,14 +31,15 @@ var loadLib = function(libFile){
 
 plugger.load(function(err, plugins){
   if(err){
-    logger.error(err.stack||err);
+    server.log('error', err.stack||err);
   }
   async.eachSeries(plugins, function(plugin, next){
     try{
       var section = plugin.name.replace(/\.js$/i, '').toLowerCase();
       var cfg = config.section(section, {});
       cfg.route = cfg.route || apiConfig.route;
-      logger.info('Loading plugin: ', plugin.name);
+      //logger.info('Loading plugin: ', plugin.name);
+      server.log('info', 'Loading plugin: '+plugin.name);
       plugin.plugin({
         hapi: server,
         sockets: sockets,
@@ -49,8 +50,8 @@ plugger.load(function(err, plugins){
         stores: stores
       }, next);
     }catch(e){
-      logger.error('Error loading: '+(plugin.location||plugin.name));
-      logger.error(e.stack||e);
+      server.log('error', 'Error loading: '+(plugin.location||plugin.name));
+      server.log('error', e.stack||e);
       next();
     }
   }, function(){
